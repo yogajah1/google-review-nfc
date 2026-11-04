@@ -3,7 +3,8 @@ import {
   getCard, 
   resetCard, 
   unlockCard, 
-  getStats 
+  getStats,
+  getAllCards 
 } from '@/lib/db';
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '9110839850:AAHCEyj7ZDeC2dg0fvlsJcmeaAYdcvMJMdc';
@@ -58,6 +59,13 @@ Halo Bos <b>@${username}</b>! Ini bot pribadi Anda untuk mencetak dan mengelola 
   <i>Contoh:</i> <code>/generate 10</code>
   Membuat kartu baru dan memberikan link siap cetak QR Code A4.
 
+• <code>/aktif</code>
+  Melihat daftar semua toko yang sudah aktif beserta link cetak stiker QR-nya.
+
+• <code>/qr &lt;kode atau nama toko&gt;</code>
+  <i>Contoh:</i> <code>/qr REV-8X2K9</code>
+  Mengambil link & lembar cetak stiker QR toko yang sudah aktif.
+
 • <code>/cek &lt;kode&gt;</code>
   <i>Contoh:</i> <code>/cek REV-8X2K9</code>
   Cek status kartu, nama toko, link, dan jumlah tap scan.
@@ -78,8 +86,99 @@ Halo Bos <b>@${username}</b>! Ini bot pribadi Anda untuk mencetak dan mengelola 
 `;
     await sendTelegramMessage(chatId, helpText, {
       inline_keyboard: [
-        [{ text: '📊 Lihat Statistik', callback_data: 'stats' }],
+        [
+          { text: '⭐ Lihat Toko Aktif', callback_data: 'aktif' },
+          { text: '📊 Lihat Statistik', callback_data: 'stats' }
+        ],
         [{ text: '🌐 Buka Web Dashboard Admin', url: `${BASE_URL}/admin` }],
+      ],
+    });
+    return;
+  }
+
+  // Perintah: /aktif (Daftar kartu toko yang sudah aktif)
+  if (text === '/aktif' || text === '/stores' || text === '/toko') {
+    const allCards = await getAllCards();
+    const activeCards = allCards.filter(c => c.status === 'active');
+
+    if (activeCards.length === 0) {
+      await sendTelegramMessage(
+        chatId,
+        'ℹ️ <b>Belum ada kartu yang aktif di toko.</b>\n\nSemua kartu saat ini masih berupa stok belum diaktivasi.'
+      );
+      return;
+    }
+
+    let msgText = `⭐ <b>Daftar Toko Aktif (${activeCards.length} Toko):</b>\n\n`;
+    activeCards.slice(0, 15).forEach((c, idx) => {
+      msgText += `${idx + 1}. <b>${c.store_name || c.id}</b>\n`;
+      msgText += `   • ID: <code>${c.id}</code> | Scan: ${c.total_scans || 0}x\n`;
+      msgText += `   • 🖨 <a href="${BASE_URL}/admin/print?id=${c.id}">Cetak Stiker Toko Ini</a>\n`;
+      msgText += `   • 🔗 <a href="${BASE_URL}/r/${c.id}">Link Kartu</a>\n\n`;
+    });
+
+    if (activeCards.length > 15) {
+      msgText += `<i>...dan ${activeCards.length - 15} toko aktif lainnya.</i>\n\n`;
+    }
+
+    msgText += `👉 <i>Ketik <code>/qr &lt;id_kartu&gt;</code> untuk mendapatkan QR toko tertentu.</i>`;
+
+    await sendTelegramMessage(chatId, msgText, {
+      inline_keyboard: [
+        [{ text: '🖨 Cetak Semua Toko Aktif', url: `${BASE_URL}/admin/print?status=active` }],
+        [{ text: '🌐 Buka Dashboard Admin', url: `${BASE_URL}/admin` }],
+      ],
+    });
+    return;
+  }
+
+  // Perintah: /qr <kode atau nama toko>
+  if (text.startsWith('/qr')) {
+    const query = text.replace('/qr', '').trim();
+    if (!query) {
+      await sendTelegramMessage(
+        chatId,
+        '⚠️ Silakan masukkan kode kartu atau nama toko.\n<i>Contoh:</i> <code>/qr REV-8X2K9</code> atau <code>/qr Kopi Kenangan</code>'
+      );
+      return;
+    }
+
+    const allCards = await getAllCards();
+    const upperQuery = query.toUpperCase();
+    const foundCard = allCards.find(c => 
+      c.id.toUpperCase() === upperQuery || 
+      (c.store_name && c.store_name.toLowerCase().includes(query.toLowerCase()))
+    );
+
+    if (!foundCard) {
+      await sendTelegramMessage(
+        chatId,
+        `❌ Tidak ditemukan kartu atau toko dengan pencarian: <code>${query}</code>`
+      );
+      return;
+    }
+
+    const isLocked = foundCard.locked_until && new Date(foundCard.locked_until).getTime() > Date.now();
+    const statusEmoji = foundCard.status === 'active' ? '🟢 Aktif di Toko' : '🟡 Belum Diaktivasi';
+    const printUrl = `${BASE_URL}/admin/print?id=${foundCard.id}`;
+
+    const qrMsg = `
+📷 <b>Informasi QR & Stiker: ${foundCard.store_name || foundCard.id}</b>
+
+• <b>ID Kartu:</b> <code>${foundCard.id}</code>
+• <b>Status:</b> ${statusEmoji}
+• <b>Target Scan:</b> ${BASE_URL}/r/${foundCard.id}
+• <b>Total Tap/Scan:</b> ${foundCard.total_scans || 0} kali
+${foundCard.google_review_url ? `• <b>Link Review Bintang 5:</b> <a href="${foundCard.google_review_url}">Buka Ulasan Google</a>\n` : ''}
+🖨 <b>Cetak Stiker Vinyl Akrilik:</b>
+👉 <a href="${printUrl}"><b>KLIK DI SINI UNTUK CETAK STIKER TOKO INI</b></a>
+<i>(Anda bisa pilih mencetak 1, 5, atau 10 lembar untuk toko ini)</i>
+`;
+
+    await sendTelegramMessage(chatId, qrMsg, {
+      inline_keyboard: [
+        [{ text: '🖨 Cetak Stiker Toko Ini', url: printUrl }],
+        [{ text: '⭐ Buka Form Ulasan', url: foundCard.google_review_url || `${BASE_URL}/r/${foundCard.id}` }],
       ],
     });
     return;
@@ -189,6 +288,10 @@ ${listCodes}${remainingText}
 `;
     await sendTelegramMessage(chatId, cardInfo, {
       inline_keyboard: [
+        [
+          { text: '🖨 Cetak Stiker QR', url: `${BASE_URL}/admin/print?id=${card.id}` },
+          { text: '🌐 Buka Kartu', url: `${BASE_URL}/r/${card.id}` },
+        ],
         [
           { text: '🔄 Reset Kartu', callback_data: `reset_${card.id}` },
           { text: '🔓 Buka Kunci', callback_data: `unlock_${card.id}` },

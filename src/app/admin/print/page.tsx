@@ -4,26 +4,63 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import QRCode from 'qrcode';
 import { Card } from '@/types/card';
-import { Printer, ArrowLeft, RefreshCw, Smartphone, Search, Trash2 } from 'lucide-react';
+import { 
+  Printer, 
+  ArrowLeft, 
+  RefreshCw, 
+  Smartphone, 
+  Search, 
+  Trash2, 
+  Download, 
+  Store,
+  Layers,
+  Copy,
+  Check
+} from 'lucide-react';
 
 interface PrintableCard extends Card {
   qrDataUrl: string;
   targetUrl: string;
+  copyIndex?: number;
 }
 
 export default function BatchPrintPage() {
   const [cards, setCards] = useState<PrintableCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterBatch, setFilterBatch] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [selectedCardId, setSelectedCardId] = useState<string>('all');
+  const [copiesCount, setCopiesCount] = useState<number>(1);
   const [batches, setBatches] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [secret, setSecret] = useState('');
   const [origin, setOrigin] = useState('');
 
+  // Helper resolver domain: Selalu gunakan domain produksi utama agar scan di HP TIDAK kena proteksi SSO Vercel preview!
+  const getTargetBase = () => {
+    if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
+      return 'https://google-review-nfc-neon.vercel.app';
+    }
+    return process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://google-review-nfc-neon.vercel.app');
+  };
+
   useEffect(() => {
-    setOrigin(window.location.origin);
+    const baseDomain = getTargetBase();
+    setOrigin(baseDomain);
     const saved = localStorage.getItem('admin_secret') || 'admin12345';
     setSecret(saved);
+
+    // Baca query parameters dari URL (misal: ?id=REV-123 atau ?status=active)
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const qId = params.get('id');
+      const qStatus = params.get('status');
+      const qBatch = params.get('batch');
+      if (qId) setSelectedCardId(qId);
+      if (qStatus) setFilterStatus(qStatus);
+      if (qBatch) setFilterBatch(qBatch);
+    }
+
     loadCards(saved);
   }, []);
 
@@ -43,7 +80,7 @@ export default function BatchPrintPage() {
         setBatches(Array.from(batchSet));
 
         // Generate QR Code kualitas tajam untuk setiap kartu
-        const base = window.location.origin;
+        const base = getTargetBase();
         const printable: PrintableCard[] = await Promise.all(
           rawCards.map(async (c) => {
             const url = `${base}/r/${c.id}`;
@@ -73,6 +110,14 @@ export default function BatchPrintPage() {
     }
   };
 
+  const handleDownloadQrPng = (card: PrintableCard) => {
+    const link = document.createElement('a');
+    const cleanName = (card.store_name || card.id).replace(/[^a-zA-Z0-9_-]/g, '_');
+    link.download = `QR-${cleanName}-${card.id}.png`;
+    link.href = card.qrDataUrl;
+    link.click();
+  };
+
   const handleDeleteOne = async (cardId: string) => {
     if (!confirm(`Hapus kartu ${cardId} dari sistem?`)) return;
     try {
@@ -97,75 +142,172 @@ export default function BatchPrintPage() {
     window.print();
   };
 
-  // Filter Cards
-  const filteredCards = cards.filter(c => {
+  // 1. Filter dasar (search, batch, status)
+  const baseFiltered = cards.filter(c => {
     const matchesBatch = filterBatch === 'all' || c.batch_id === filterBatch;
+    const matchesStatus = filterStatus === 'all' || c.status === filterStatus;
     const matchesSearch = 
       c.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (c.store_name && c.store_name.toLowerCase().includes(searchTerm.toLowerCase()));
-    return matchesBatch && matchesSearch;
+    return matchesBatch && matchesStatus && matchesSearch;
   });
+
+  // 2. Daftar kartu yang sudah aktif untuk dropdown pilihan toko
+  const activeCards = cards.filter(c => c.status === 'active');
+
+  // 3. Tentukan kartu yang akan ditampilkan (bisa diduplikasi jika dipilih 1 toko dengan banyak lembar)
+  let displayCards: PrintableCard[] = [];
+  if (selectedCardId !== 'all') {
+    const single = cards.find(c => c.id === selectedCardId);
+    if (single) {
+      displayCards = Array.from({ length: copiesCount }, (_, idx) => ({
+        ...single,
+        copyIndex: idx + 1,
+      }));
+    } else {
+      displayCards = baseFiltered;
+    }
+  } else {
+    displayCards = baseFiltered;
+  }
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 print:bg-white print:p-0">
       
       {/* Top Header & Control Bar (Sembunyi saat diprint) */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-20 print:hidden shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/admin"
-              className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div>
-              <h1 className="text-sm font-bold text-slate-900">Cetak Stiker Vinyl Google Review</h1>
-              <p className="text-[11px] text-slate-400">Komposisi 1:1 persis plakat akrilik resmi</p>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col gap-3">
+          
+          {/* Row 1: Back + Title + Quick Actions */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Link
+                href="/admin"
+                className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+              <div>
+                <h1 className="text-sm font-bold text-slate-900">Cetak Stiker Vinyl Google Review</h1>
+                <p className="text-[11px] text-slate-400">Komposisi 1:1 persis plakat akrilik resmi (Bisa cetak per-toko atau massal)</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => loadCards(secret)}
+                className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition"
+                title="Refresh Data"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={handlePrint}
+                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md transition"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Cetak Sekarang (Ctrl + P)</span>
+              </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Row 2: Comprehensive Filters & Quantity Selector */}
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 text-xs">
+            
             {/* Searchbox Nama Toko / ID */}
-            <div className="relative hidden md:block w-56">
+            <div className="relative w-48">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Cari nama toko / ID..."
+                placeholder="Cari toko / ID..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
 
-            {/* Filter Batch */}
+            {/* Filter Status: Semua / Aktif / Belum */}
             <select
-              value={filterBatch}
-              onChange={(e) => setFilterBatch(e.target.value)}
-              className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 font-medium outline-none"
+              value={filterStatus}
+              onChange={(e) => {
+                setFilterStatus(e.target.value);
+                setSelectedCardId('all');
+              }}
+              className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 font-medium outline-none"
             >
-              <option value="all">Semua Batch ({cards.length})</option>
-              {batches.map(b => (
-                <option key={b} value={b}>Batch: {b}</option>
-              ))}
+              <option value="all">Semua Status ({cards.length})</option>
+              <option value="active">⭐ Khusus Toko Aktif ({activeCards.length})</option>
+              <option value="unactivated">📦 Khusus Stok Belum Aktif ({cards.filter(c => c.status === 'unactivated').length})</option>
             </select>
 
-            <button
-              onClick={() => loadCards(secret)}
-              className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition"
-              title="Refresh"
+            {/* Pilih Toko Tertentu (Untuk reprint kartu aktif atau cetak banyak lembar 1 toko) */}
+            <select
+              value={selectedCardId}
+              onChange={(e) => setSelectedCardId(e.target.value)}
+              className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 font-bold text-blue-900 outline-none max-w-xs truncate"
             >
-              <RefreshCw className="w-4 h-4" />
-            </button>
+              <option value="all">-- Semua Kartu Sesuai Filter --</option>
+              {activeCards.length > 0 && (
+                <optgroup label="Toko yang Sudah Aktif">
+                  {activeCards.map(c => (
+                    <option key={c.id} value={c.id}>
+                      ⭐ {c.store_name || c.id} ({c.id})
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {cards.filter(c => c.status === 'unactivated').length > 0 && (
+                <optgroup label="Stok Belum Diaktivasi">
+                  {cards.filter(c => c.status === 'unactivated').map(c => (
+                    <option key={c.id} value={c.id}>
+                      📦 {c.id} (Belum Aktif)
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
 
-            <button
-              onClick={handlePrint}
-              className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md transition"
-            >
-              <Printer className="w-4 h-4" />
-              <span>Cetak Sekarang (Ctrl + P)</span>
-            </button>
+            {/* Jika Memilih 1 Kartu Spesifik: Pilih Jumlah Lembar Cetak */}
+            {selectedCardId !== 'all' && (
+              <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg">
+                <span className="font-bold text-blue-900">Cetak Berapa Lembar:</span>
+                <select
+                  value={copiesCount}
+                  onChange={(e) => setCopiesCount(parseInt(e.target.value, 10) || 1)}
+                  className="bg-white border border-blue-300 rounded font-bold px-2 py-0.5 text-blue-900 outline-none"
+                >
+                  <option value={1}>1 Lembar</option>
+                  <option value={2}>2 Lembar</option>
+                  <option value={3}>3 Lembar</option>
+                  <option value={4}>4 Lembar</option>
+                  <option value={5}>5 Lembar</option>
+                  <option value={6}>6 Lembar</option>
+                  <option value={8}>8 Lembar</option>
+                  <option value={10}>10 Lembar</option>
+                  <option value={12}>12 Lembar</option>
+                  <option value={15}>15 Lembar</option>
+                  <option value={20}>20 Lembar</option>
+                </select>
+              </div>
+            )}
+
+            {/* Filter Batch */}
+            {batches.length > 0 && (
+              <select
+                value={filterBatch}
+                onChange={(e) => setFilterBatch(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 font-medium outline-none ml-auto"
+              >
+                <option value="all">Semua Batch ({batches.length})</option>
+                {batches.map(b => (
+                  <option key={b} value={b}>Batch: {b}</option>
+                ))}
+              </select>
+            )}
+
           </div>
+
         </div>
       </header>
 
@@ -176,15 +318,16 @@ export default function BatchPrintPage() {
             <Smartphone className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
             <div className="space-y-1">
               <p className="font-bold">📱 Panduan Cetak Vinyl &amp; Penulisan NFC:</p>
-              <p className="text-blue-900">
-                1. Desain kartu di bawah ini dibuat <b>bujur sangkar presisi 1:1</b> dengan 4 kuadran warna khas Google (Biru, Merah, Hijau, Kuning).<br />
-                2. Di dalam kartu <b>murni tanpa ID kartu</b> persis seperti contoh akrilik toko.<br />
-                3. URL NFC tercetak di strip atas di luar garis gunting untuk panduan kamu saat scan pakai aplikasi <b>NFC Tools</b>.
+              <p className="text-blue-900 leading-relaxed">
+                1. Desain stiker di bawah ini dibuat <b>bujur sangkar presisi 1:1</b> persis plakat akrilik resmi.<br />
+                2. Di dalam kotak stiker <b>murni tanpa ID kartu</b> agar rapi &amp; bersih.<br />
+                3. URL NFC tercetak di garis atas di luar area gunting untuk panduan kamu saat scan pakai aplikasi <b>NFC Tools</b>.<br />
+                4. Kamu bisa download gambar QR Code PNG per kartu menggunakan tombol <b>&quot;📥 Download PNG&quot;</b> di atas setiap stiker.
               </p>
             </div>
           </div>
           <div className="text-right text-[11px] text-blue-700 font-bold whitespace-nowrap">
-            Total {filteredCards.length} Kartu
+            Menampilkan: {displayCards.length} Lembar Stiker
           </div>
         </div>
       </div>
@@ -196,32 +339,58 @@ export default function BatchPrintPage() {
             <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
             <p className="text-xs">Menyiapkan kartu ulasan berkualitas tinggi...</p>
           </div>
-        ) : filteredCards.length === 0 ? (
+        ) : displayCards.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-3xl border border-slate-200">
-            <p className="text-sm font-bold text-slate-700">Tidak ada kartu yang ditemukan.</p>
-            <p className="text-xs text-slate-400 mt-1">Kembali ke Dashboard Admin dan klik &quot;Generate Batch Kartu Baru&quot;.</p>
+            <p className="text-sm font-bold text-slate-700">Tidak ada kartu yang cocok dengan filter.</p>
+            <p className="text-xs text-slate-400 mt-1">Ganti pilihan filter di atas atau kembali ke Dashboard Admin.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-10 print:grid-cols-2 print:gap-8 justify-items-center">
-            {filteredCards.map((card) => (
-              <div key={card.id} className="flex flex-col items-center print:break-inside-avoid">
+            {displayCards.map((card, idx) => (
+              <div key={`${card.id}-${card.copyIndex || idx}`} className="flex flex-col items-center print:break-inside-avoid">
                 
-                {/* Petunjuk Operator di LUAR Stiker + Tombol Hapus 1 per 1 */}
+                {/* Petunjuk Operator di LUAR Stiker + Tombol Download PNG & Hapus */}
                 <div className="w-[330px] flex items-center justify-between px-3 py-1.5 text-[11px] font-mono text-slate-500 border border-dashed border-slate-300 rounded-t-xl bg-slate-50 print:bg-white mb-1.5">
                   <div className="flex items-center gap-1.5 truncate">
                     <span>✂️ Garis Potong</span>
                     <span className="font-bold text-slate-900">• {origin}/r/{card.id}</span>
+                    {card.copyIndex && card.copyIndex > 1 && (
+                      <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-1.5 py-0.2 rounded">
+                        #{card.copyIndex}
+                      </span>
+                    )}
                   </div>
                   
-                  {/* Tombol Hapus Kartu Ini (Hanya tampil di layar, sembunyi saat diprint) */}
-                  <button
-                    onClick={() => handleDeleteOne(card.id)}
-                    title="Hapus kartu ini"
-                    className="print:hidden p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  {/* Action Bar Operator (Hanya tampil di layar, sembunyi saat diprint) */}
+                  <div className="print:hidden flex items-center gap-1">
+                    {/* Tombol Download PNG */}
+                    <button
+                      onClick={() => handleDownloadQrPng(card)}
+                      title="Download QR Code PNG Kartu Ini"
+                      className="p-1 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition flex items-center gap-0.5 text-[10px] font-sans font-bold"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>PNG</span>
+                    </button>
+
+                    {/* Tombol Hapus Kartu Ini */}
+                    <button
+                      onClick={() => handleDeleteOne(card.id)}
+                      title="Hapus kartu ini dari sistem"
+                      className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
+
+                {/* Tag Toko Jika Sudah Aktif */}
+                {card.store_name && (
+                  <div className="print:hidden w-[330px] flex items-center justify-between px-2.5 py-1 mb-1 bg-emerald-50 border border-emerald-200 rounded-lg text-[11px] text-emerald-800">
+                    <span className="font-bold truncate">🟢 {card.store_name}</span>
+                    <span className="text-[10px] font-mono opacity-80">{card.id}</span>
+                  </div>
+                )}
 
                 {/* ========================================================
                     KARTU FISIK AKRILIK BUJUR SANGKAR MURNI 1:1
@@ -244,21 +413,21 @@ export default function BatchPrintPage() {
 
                   {/* Kotak Putih Utama di Tengah */}
                   <div 
-                    className="relative w-full h-[84%] bg-white rounded-[24px] pt-8 pb-3.5 px-3.5 flex flex-col items-center justify-between"
+                    className="relative w-full h-[84%] bg-white rounded-[24px] pt-11 pb-3.5 px-3.5 flex flex-col items-center justify-between"
                     style={{
                       boxShadow: '0 2px 10px rgba(0,0,0,0.08)'
                     }}
                   >
                     
-                    {/* Kubah Setengah Lingkaran Tempat Duduk Logo Google G */}
+                    {/* Kubah Setengah Lingkaran Tempat Duduk Logo Google G (Disesuaikan agar tidak menutupi tulisan) */}
                     <div 
-                      className="absolute -top-9 left-1/2 -translate-x-1/2 w-20 h-20 rounded-full bg-white flex items-center justify-center"
+                      className="absolute -top-7 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full bg-white flex items-center justify-center"
                       style={{
                         boxShadow: '0 -2px 6px rgba(0,0,0,0.04)'
                       }}
                     >
                       {/* Logo Google G Resmi Bulat */}
-                      <svg className="w-13 h-13" viewBox="0 0 24 24" style={{ width: '52px', height: '52px' }}>
+                      <svg className="w-10 h-10" viewBox="0 0 24 24" style={{ width: '40px', height: '40px' }}>
                         <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.67v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.16z" />
                         <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z" />
                         <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z" />
@@ -267,11 +436,11 @@ export default function BatchPrintPage() {
                     </div>
 
                     {/* Header Teks & 5 Bintang Emas */}
-                    <div className="text-center w-full mt-0.5">
-                      <p className="text-[13px] font-normal text-[#202124] tracking-normal leading-tight font-sans">
+                    <div className="text-center w-full mt-1">
+                      <p className="text-[12px] font-medium text-[#3c4043] tracking-normal leading-tight font-sans">
                         Bantu Kami Dengan
                       </p>
-                      <h2 className="text-[23px] font-bold text-[#1f1f1f] tracking-tight leading-tight font-sans mt-0.5">
+                      <h2 className="text-[22px] font-bold text-[#1f1f1f] tracking-tight leading-tight font-sans mt-0.5">
                         Google Review
                       </h2>
                       {/* 5 Bintang Emas Kuning */}

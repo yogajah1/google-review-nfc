@@ -56,6 +56,23 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // 4b. Jika URL mengandung Hex CID (data=!1s0x...:0x...)
+    const hexCidMatch = trimmed.match(/!1s(0x[0-9a-fA-F]+):(0x[0-9a-fA-F]+)/);
+    if (hexCidMatch && hexCidMatch[2]) {
+      try {
+        const decCid = BigInt(hexCidMatch[2]).toString();
+        const nameMatch = trimmed.match(/\/maps\/place\/([^/@?]+)/i);
+        const rawName = nameMatch ? decodeURIComponent(nameMatch[1].replace(/\+/g, ' ')) : null;
+        return NextResponse.json({
+          directReviewUrl: `https://search.google.com/local/writereview?cid=${decCid}`,
+          storeName: rawName,
+          method: 'hex_cid'
+        });
+      } catch (err) {
+        console.warn('Could not parse hex CID:', err);
+      }
+    }
+
     // 5. Jika shortlink maps.app.goo.gl atau goo.gl/maps -> resolve redirect di server
     if (trimmed.includes('maps.app.goo.gl') || trimmed.includes('goo.gl/maps')) {
       try {
@@ -75,6 +92,23 @@ export async function POST(req: NextRequest) {
             storeName: null,
             method: 'resolved_place_id'
           });
+        }
+
+        // Cari Hex CID di final URL (!1s0x...:0x...)
+        const inlineHex = finalUrl.match(/!1s(0x[0-9a-fA-F]+):(0x[0-9a-fA-F]+)/);
+        if (inlineHex && inlineHex[2]) {
+          try {
+            const decCid = BigInt(inlineHex[2]).toString();
+            const nameMatch = finalUrl.match(/\/maps\/place\/([^/@?]+)/i);
+            const rawName = nameMatch ? decodeURIComponent(nameMatch[1].replace(/\+/g, ' ')) : null;
+            return NextResponse.json({
+              directReviewUrl: `https://search.google.com/local/writereview?cid=${decCid}`,
+              storeName: rawName,
+              method: 'resolved_hex_cid'
+            });
+          } catch (err) {
+            console.warn('Could not parse resolved hex CID:', err);
+          }
         }
 
         // Cari Nama Toko di /place/Nama+Toko

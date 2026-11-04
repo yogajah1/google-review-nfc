@@ -37,6 +37,7 @@ yarn-error.log*
 # local runtime data
 data/
 contoh-qr/
+masalah/
 
 # vercel
 .vercel
