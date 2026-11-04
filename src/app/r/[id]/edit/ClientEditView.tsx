@@ -43,6 +43,7 @@ export default function ClientEditView({ card, isInitiallyLocked, initialLockedM
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
+  const [verifiedAddress, setVerifiedAddress] = useState<string | null>(null);
 
   const handleInputChange = (val: string) => {
     setGoogleUrl(val);
@@ -89,6 +90,7 @@ export default function ClientEditView({ card, isInitiallyLocked, initialLockedM
       if (data.directReviewUrl) {
         setGoogleUrl(data.directReviewUrl);
         if (data.storeName) setStoreName(data.storeName);
+        if (data.address) setVerifiedAddress(data.address);
       }
     } catch {
       // ignore
@@ -158,7 +160,7 @@ export default function ClientEditView({ card, isInitiallyLocked, initialLockedM
       const clean = finalUrl.replace(/\/+$/, '');
       finalUrl = clean.endsWith('/review') ? clean : `${clean}/review`;
     } else if (!finalUrl.startsWith('http')) {
-      finalUrl = `https://search.google.com/local/writereview?query=${encodeURIComponent(finalUrl)}`;
+      finalUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(finalUrl)}`;
     }
 
     if (newPin && !/^\d{4}$/.test(newPin)) {

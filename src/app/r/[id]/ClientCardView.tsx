@@ -44,6 +44,7 @@ export default function ClientCardView({ card, justVerified }: Props) {
 
   const [isConverting, setIsConverting] = useState(false);
   const [convertedSuccess, setConvertedSuccess] = useState(false);
+  const [verifiedAddress, setVerifiedAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [copied, setCopied] = useState(false);
@@ -138,10 +139,15 @@ export default function ClientCardView({ card, justVerified }: Props) {
       
       if (data.directReviewUrl) {
         setDirectReviewUrl(data.directReviewUrl);
-        if (data.storeName && !storeName) {
+        if (data.storeName) {
           setStoreName(data.storeName);
-        } else if (!storeName && !inputVal.startsWith('http')) {
+        } else if (!inputVal.startsWith('http')) {
           setStoreName(inputVal);
+        }
+        if (data.address) {
+          setVerifiedAddress(data.address);
+        } else {
+          setVerifiedAddress(null);
         }
         setConvertedSuccess(true);
       }
@@ -153,7 +159,7 @@ export default function ClientCardView({ card, justVerified }: Props) {
         setDirectReviewUrl(clean.endsWith('/review') ? clean : `${clean}/review`);
         setConvertedSuccess(true);
       } else if (!inputVal.startsWith('http')) {
-        setDirectReviewUrl(`https://search.google.com/local/writereview?query=${encodeURIComponent(inputVal)}`);
+        setDirectReviewUrl(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(inputVal)}`);
         setStoreName(inputVal);
         setConvertedSuccess(true);
       }
@@ -183,7 +189,7 @@ export default function ClientCardView({ card, justVerified }: Props) {
       } else if (input.startsWith('http')) {
         finalReviewUrl = input;
       } else {
-        finalReviewUrl = `https://search.google.com/local/writereview?query=${encodeURIComponent(input)}`;
+        finalReviewUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(input)}`;
         finalStoreName = input;
       }
     }
@@ -500,28 +506,42 @@ export default function ClientCardView({ card, justVerified }: Props) {
 
             {/* Notifikasi Status Link Penilaian Bintang 5 */}
             {convertedSuccess && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-900 animate-fadeIn">
-                <div className="flex items-center gap-2 truncate mr-2">
-                  <CheckCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                  <div className="truncate">
-                    <span className="font-bold text-emerald-900 block truncate">
-                      {storeName || smartInput}
-                    </span>
-                    <span className="text-[11px] text-emerald-700">
-                      Terhubung ke Google Maps! Siap menerima bintang 5 ⭐
-                    </span>
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-2 text-xs text-emerald-900 animate-fadeIn">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2.5 truncate">
+                    <CheckCheck className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                    <div className="truncate">
+                      <span className="font-bold text-emerald-950 block truncate text-sm">
+                        {storeName || smartInput}
+                      </span>
+                      {verifiedAddress ? (
+                        <div className="text-[11px] text-emerald-800 flex items-center gap-1 mt-0.5 font-medium">
+                          <MapPin className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                          <span className="truncate">{verifiedAddress}</span>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-emerald-700">
+                          Terhubung ke Google Maps! Siap menerima bintang 5 ⭐
+                        </span>
+                      )}
+                    </div>
                   </div>
+                  {directReviewUrl && (
+                    <a
+                      href={directReviewUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-xl transition whitespace-nowrap flex items-center gap-1.5 shadow-xs flex-shrink-0"
+                    >
+                      <span>⭐ Uji Buka Link</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
                 </div>
-                {directReviewUrl && (
-                  <a
-                    href={directReviewUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-lg transition whitespace-nowrap flex items-center gap-1 shadow-xs"
-                  >
-                    <span>⭐ Tes Bintang</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
+                {verifiedAddress && (
+                  <p className="text-[10px] text-emerald-700/90 bg-emerald-100/60 rounded-lg px-2.5 py-1.5 leading-relaxed">
+                    💡 <strong>Tips Akurasi:</strong> Pastikan alamat cabang di atas sesuai toko Anda. Jika beda cabang, ketik nama toko disertai lokasi/daerah (contoh: <em>Mie Gacoan Tebet</em>).
+                  </p>
                 )}
               </div>
             )}
