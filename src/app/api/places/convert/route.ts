@@ -106,7 +106,17 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Jika format g.page/r/... (tanpa /review)
-    if (trimmed.includes('g.page/r/')) {
+    if (trimmed.includes('g.page/')) {
+      // Jika ternyata user salah memasukkan Place ID ke format g.page (misal: g.page/r/ChIJ...)
+      const inlinePid = trimmed.match(/(ChIJ[A-Za-z0-9_-]{20,})/);
+      if (inlinePid && inlinePid[1]) {
+        return NextResponse.json({
+          directReviewUrl: `https://search.google.com/local/writereview?placeid=${inlinePid[1]}`,
+          storeName: null,
+          method: 'gpage_with_placeid_auto_corrected'
+        });
+      }
+
       const clean = trimmed.replace(/\/+$/, '');
       const directUrl = clean.endsWith('/review') ? clean : `${clean}/review`;
       return NextResponse.json({

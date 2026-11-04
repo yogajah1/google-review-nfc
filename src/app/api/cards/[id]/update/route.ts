@@ -26,11 +26,19 @@ export async function POST(
       );
     }
 
+    let sanitizedReviewUrl = google_review_url ? google_review_url.trim() : undefined;
+    if (sanitizedReviewUrl && sanitizedReviewUrl.includes('g.page') && sanitizedReviewUrl.includes('ChIJ')) {
+      const pidMatch = sanitizedReviewUrl.match(/(ChIJ[A-Za-z0-9_-]{20,})/);
+      if (pidMatch && pidMatch[1]) {
+        sanitizedReviewUrl = `https://search.google.com/local/writereview?placeid=${pidMatch[1]}`;
+      }
+    }
+
     const result = await updateCardWithPin(id, {
       pin,
       phone_last_4,
       store_name,
-      google_review_url,
+      google_review_url: sanitizedReviewUrl,
       owner_phone,
       new_pin,
     });

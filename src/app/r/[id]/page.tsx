@@ -1,7 +1,8 @@
 import { Metadata } from 'next';
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { getCard, incrementScan } from '@/lib/db';
 import ClientCardView from './ClientCardView';
+import ActiveCardRedirect from './ActiveCardRedirect';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,12 +42,11 @@ export default async function CardPage({ params, searchParams }: PageProps) {
   }
 
   // Jika kartu aktif dan diakses customer biasa (bukan baru verifikasi & bukan klik kelola)
-  // Langsung lakukan instant redirect ke Google Maps Review!
+  // Langsung lakukan smart mobile redirect ke Google Maps Review!
   if (card.status === 'active' && !verified && !manage && card.google_review_url) {
     // Increment scan counter
     await incrementScan(card.id);
-    // Instant redirect
-    redirect(card.google_review_url);
+    return <ActiveCardRedirect card={card} />;
   }
 
   return (

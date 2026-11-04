@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
 import fs from 'fs';
 import path from 'path';
+export type { Card, ActivationPayload, UpdatePayload } from '@/types/card';
 import { Card, ActivationPayload, UpdatePayload } from '@/types/card';
 
 const MAX_FAILED_ATTEMPTS = 5;
