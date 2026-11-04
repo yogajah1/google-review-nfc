@@ -2,14 +2,12 @@ import Link from 'next/link';
 import { 
   Sparkles, 
   Smartphone, 
-  QrCode, 
-  ShieldCheck, 
-  Store, 
-  ArrowRight, 
-  Star, 
-  CheckCircle2, 
   Layers,
   Lock,
+  Star,
+  CheckCircle2,
+  TrendingUp,
+  MapPin,
   ExternalLink
 } from 'lucide-react';
 
@@ -17,34 +15,30 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col justify-between selection:bg-blue-500 selection:text-white">
       
-      {/* Top Navbar */}
+      {/* Top Navbar (Bersih tanpa link admin) */}
       <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/20">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-teal-500 flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/20">
               G
             </div>
             <div>
-              <span className="font-bold text-base tracking-tight text-white">ReviewNFC</span>
-              <span className="text-[10px] text-blue-400 font-mono ml-2 px-1.5 py-0.5 bg-blue-500/10 rounded-md border border-blue-500/20">
-                v1.0
+              <span className="font-bold text-base tracking-tight text-white">Google Review NFC</span>
+              <span className="text-[10px] text-emerald-400 font-medium ml-2 px-1.5 py-0.5 bg-emerald-500/10 rounded-md border border-emerald-500/20">
+                Official Card
               </span>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <Link
-              href="/admin"
-              className="text-xs font-semibold text-slate-300 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700 hover:border-slate-600 transition"
+            <a
+              href="https://wa.me/6281234567890?text=Halo%20saya%20tertarik%20pesan%20kartu%20Google%20Review%20NFC"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl transition shadow-md shadow-blue-600/30"
             >
-              Dashboard Admin
-            </Link>
-            <Link
-              href="/admin/print"
-              className="text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-1.5 rounded-lg transition shadow-md shadow-blue-600/30"
-            >
-              Cetak QR Vinyl
-            </Link>
+              Pesan Kartu Sekarang
+            </a>
           </div>
         </div>
       </header>
@@ -55,7 +49,7 @@ export default function Home() {
         {/* Badge Intro */}
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Sistem Kartu Google Review Pintar (NFC NTAG215 + QR Code)</span>
+          <span>Solusi Ulasan Cepat untuk Kafe, Restoran, Bengkel, dan UMKM</span>
         </div>
 
         {/* Main Headline */}
@@ -67,27 +61,24 @@ export default function Home() {
             </span>
           </h1>
           <p className="text-sm sm:text-base text-slate-400 max-w-2xl mx-auto leading-relaxed">
-            Solusi kartu fisik akrilik susu + stiker vinyl berteknologi chip NFC &amp; QR Code dinamis. 
-            Pelanggan tidak perlu repot mencari nama toko di Google — langsung menuju halaman pemberian bintang 5!
+            Plakat akrilik susu elegan berteknologi chip NFC &amp; QR Code dinamis. 
+            Pelanggan tidak perlu repot mengetik nama toko di Google — cukup dekatkan HP atau scan QR, halaman bintang 5 langsung terbuka otomatis!
           </p>
         </div>
 
-        {/* Action Buttons */}
+        {/* 5 Bintang Visual */}
+        <div className="flex items-center justify-center gap-1.5 text-amber-400 text-2xl pt-1">
+          {'★ ★ ★ ★ ★'}
+        </div>
+
+        {/* Action Demo Button */}
         <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
           <Link
             href="/r/REV-DEMO1"
-            className="flex items-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xl shadow-blue-600/30 transition transform hover:-translate-y-0.5"
+            className="flex items-center gap-2 px-6 py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xl shadow-blue-600/30 transition transform hover:-translate-y-0.5"
           >
-            <span>Uji Coba Form Aktivasi Kartu</span>
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-
-          <Link
-            href="/admin"
-            className="flex items-center gap-2 px-5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs sm:text-sm rounded-xl transition"
-          >
-            <span>Buka Dashboard Kontrol Pemilik</span>
-            <ExternalLink className="w-4 h-4 text-slate-400" />
+            <span>Coba Demo Aktivasi Kartu</span>
+            <ExternalLink className="w-4 h-4" />
           </Link>
         </div>
 
@@ -100,7 +91,7 @@ export default function Home() {
             </div>
             <h3 className="font-bold text-base text-white">NFC NTAG215 + QR Code</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Dapat discan melalui kamera HP maupun langsung di-tap lewat chip NFC. Tanpa perlu download aplikasi apa pun.
+              Dapat discan melalui kamera HP maupun langsung di-tap lewat chip NFC. Tanpa perlu download aplikasi apa pun, langsung responsif di iPhone dan Android.
             </p>
           </div>
 
@@ -108,9 +99,9 @@ export default function Home() {
             <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
               <Lock className="w-5 h-5" />
             </div>
-            <h3 className="font-bold text-base text-white">Keamanan PIN 4-Digit Maksimal</h3>
+            <h3 className="font-bold text-base text-white">Keamanan PIN 4-Digit</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Toko terlindungi dengan enkripsi Bcrypt dan auto-lockout 30 menit jika ada yang mencoba membajak alamat kartu.
+              Toko terlindungi dengan enkripsi Bcrypt dan auto-lockout 30 menit jika ada yang mencoba membajak atau mengubah alamat kartu review Anda.
             </p>
           </div>
 
@@ -120,46 +111,49 @@ export default function Home() {
             </div>
             <h3 className="font-bold text-base text-white">Bebas Pindah Alamat Toko</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Jika pemilik toko pindah lokasi atau ganti cabang, alamat link bisa diubah kapan saja tanpa perlu mengganti kartu fisik.
+              Jika toko Anda pindah lokasi, ganti cabang, atau ganti link Google Maps, alamat bisa diubah kapan saja menggunakan PIN Anda tanpa mengganti kartu fisik.
             </p>
           </div>
 
         </div>
 
-        {/* Telegram Bot Callout */}
-        <div className="w-full bg-gradient-to-r from-slate-800 to-indigo-950 border border-indigo-500/20 rounded-3xl p-6 sm:p-8 text-left flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span className="text-xs font-mono text-emerald-400 font-bold uppercase tracking-wider">
-                Bot Telegram Siap Pakai
-              </span>
+        {/* 3 Langkah Mudah */}
+        <div className="w-full bg-slate-800/40 border border-slate-800 rounded-3xl p-6 sm:p-8 text-left space-y-6">
+          <h3 className="text-lg font-bold text-white text-center">Cara Kerja Sangat Praktis</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
+            <div className="space-y-2">
+              <div className="w-10 h-10 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center mx-auto text-sm">
+                1
+              </div>
+              <h4 className="font-bold text-sm text-white">Letakkan di Meja Kasir</h4>
+              <p className="text-xs text-slate-400">Taruh plakat akrilik di meja kasir atau etalase toko yang mudah dilihat pengunjung.</p>
             </div>
-            <h3 className="text-xl font-bold text-white">Kontrol Penuh dari HP Anda (@thisfinoenable)</h3>
-            <p className="text-xs text-slate-400 max-w-xl">
-              Cukup buka bot Telegram pribadi Anda untuk generate puluhan QR Code kartu baru, cek status ulasan toko, atau reset kartu jika klien lupa PIN.
-            </p>
+            <div className="space-y-2">
+              <div className="w-10 h-10 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center mx-auto text-sm">
+                2
+              </div>
+              <h4 className="font-bold text-sm text-white">Pelanggan Tap / Scan</h4>
+              <p className="text-xs text-slate-400">Cukup dekatkan HP pelanggan ke kartu atau buka kamera untuk scan QR Code.</p>
+            </div>
+            <div className="space-y-2">
+              <div className="w-10 h-10 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center mx-auto text-sm">
+                3
+              </div>
+              <h4 className="font-bold text-sm text-white">Review Bintang 5 Meluncur</h4>
+              <p className="text-xs text-slate-400">Layar rating bintang 5 Google Maps langsung terbuka otomatis dalam hitungan detik.</p>
+            </div>
           </div>
-
-          <Link
-            href="/admin"
-            className="flex-shrink-0 px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-600/30 transition"
-          >
-            Kelola Kartu Sekarang
-          </Link>
         </div>
 
       </main>
 
-      {/* Footer */}
+      {/* Footer Bersih (Tanpa link admin) */}
       <footer className="border-t border-slate-800 py-6 text-center text-xs text-slate-500">
         <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p>© 2026 Google Review NFC &amp; QR Platform. Siap deploy ke Vercel &amp; Supabase.</p>
-          <div className="flex items-center gap-4 text-[11px]">
-            <Link href="/r/REV-DEMO1" className="hover:text-slate-400">Demo Kartu</Link>
-            <Link href="/admin" className="hover:text-slate-400">Admin</Link>
-            <Link href="/admin/print" className="hover:text-slate-400">Cetak QR</Link>
-          </div>
+          <p>© 2026 Google Review NFC Platform. All rights reserved.</p>
+          <p className="text-[11px] text-slate-500">
+            Membantu UMKM Indonesia naik kelas dengan reputasi Google Review terpercaya.
+          </p>
         </div>
       </footer>
 

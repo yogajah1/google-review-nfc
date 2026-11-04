@@ -27,7 +27,7 @@ export default function AdminPage() {
   const [cards, setCards] = useState<Card[]>([]);
   const [stats, setStats] = useState({ total: 0, active: 0, unactivated: 0, totalScans: 0 });
   const [loading, setLoading] = useState(false);
-  const [generateCount, setGenerateCount] = useState(10);
+  const [generateCount, setGenerateCount] = useState('10');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'unactivated'>('all');
   const [notification, setNotification] = useState('');
@@ -75,7 +75,8 @@ export default function AdminPage() {
   };
 
   const handleGenerate = async () => {
-    if (generateCount < 1 || generateCount > 200) {
+    const num = parseInt(generateCount, 10);
+    if (isNaN(num) || num < 1 || num > 200) {
       alert('Jumlah kartu harus antara 1 sampai 200');
       return;
     }
@@ -90,7 +91,7 @@ export default function AdminPage() {
         },
         body: JSON.stringify({
           action: 'generate',
-          count: generateCount,
+          count: num,
         }),
       });
 
@@ -296,11 +297,11 @@ export default function AdminPage() {
             <div className="flex items-center bg-white/10 rounded-xl p-1 border border-white/20">
               <span className="text-xs px-2 text-white font-medium">Jumlah:</span>
               <input
-                type="number"
-                min={1}
-                max={200}
+                type="text"
+                inputMode="numeric"
+                placeholder="10"
                 value={generateCount}
-                onChange={(e) => setGenerateCount(parseInt(e.target.value, 10) || 1)}
+                onChange={(e) => setGenerateCount(e.target.value.replace(/\D/g, ''))}
                 className="w-16 bg-white text-slate-900 text-center font-bold text-sm py-1.5 rounded-lg outline-none"
               />
             </div>

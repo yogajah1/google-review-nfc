@@ -8,7 +8,7 @@ import {
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '9110839850:AAHCEyj7ZDeC2dg0fvlsJcmeaAYdcvMJMdc';
 const ALLOWED_USERNAME = (process.env.TELEGRAM_ALLOWED_USER || 'thisfinoenable').toLowerCase().replace('@', '');
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+const BASE_URL = (process.env.NEXT_PUBLIC_BASE_URL || 'https://google-review-nfc-neon.vercel.app').replace(/\/+$/, '');
 
 export async function sendTelegramMessage(chatId: number | string, text: string, replyMarkup?: unknown) {
   const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
