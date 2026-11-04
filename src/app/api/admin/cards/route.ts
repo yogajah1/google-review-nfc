@@ -5,6 +5,8 @@ import {
   resetCard, 
   unlockCard, 
   deleteCard, 
+  deleteMultipleCards,
+  deleteAllCards,
   getStats 
 } from '@/lib/db';
 
@@ -63,6 +65,21 @@ export async function POST(req: NextRequest) {
 
     if (action === 'delete' && card_id) {
       const ok = await deleteCard(card_id);
+      return NextResponse.json({ success: ok });
+    }
+
+    if (action === 'delete_multiple' && Array.isArray(body.card_ids)) {
+      const ok = await deleteMultipleCards(body.card_ids);
+      return NextResponse.json({ success: ok });
+    }
+
+    if (action === 'delete_unactivated') {
+      const ok = await deleteAllCards('unactivated');
+      return NextResponse.json({ success: ok });
+    }
+
+    if (action === 'delete_all') {
+      const ok = await deleteAllCards('all');
       return NextResponse.json({ success: ok });
     }
 

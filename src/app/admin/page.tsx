@@ -18,7 +18,10 @@ import {
   Lock,
   Layers,
   Sparkles,
-  Bot
+  Bot,
+  CheckSquare,
+  Square,
+  AlertTriangle
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -31,6 +34,7 @@ export default function AdminPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'unactivated'>('all');
   const [notification, setNotification] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Check saved secret in localStorage
   useEffect(() => {
@@ -107,8 +111,9 @@ export default function AdminPage() {
     }
   };
 
+  // Hapus Kartu 1 per 1 atau Aksi Tunggal
   const handleAction = async (action: 'reset' | 'unlock' | 'delete', cardId: string) => {
-    if (action === 'delete' && !confirm(`Yakin ingin menghapus kartu ${cardId}?`)) return;
+    if (action === 'delete' && !confirm(`Yakin ingin MENGHAPUS PERMANEN kartu ${cardId}?`)) return;
     if (action === 'reset' && !confirm(`Yakin ingin mereset kartu ${cardId} ke status awal?`)) return;
 
     try {
@@ -123,11 +128,122 @@ export default function AdminPage() {
       const data = await res.json();
       if (data.success) {
         setNotification(`Aksi ${action} pada ${cardId} berhasil.`);
+        setSelectedIds(prev => prev.filter(id => id !== cardId));
         fetchData(secret);
       }
     } catch (err: any) {
       alert('Gagal: ' + err.message);
     }
+  };
+
+  // Hapus Banyak Kartu yang Dicentang (Bulk Delete)
+  const handleDeleteSelected = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Yakin ingin MENGHAPUS ${selectedIds.length} kartu terpilih sekaligus?`)) return;
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/cards', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${secret}`
+        },
+        body: JSON.stringify({ 
+          action: 'delete_multiple', 
+          card_ids: selectedIds 
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setNotification(`Berhasil menghapus ${selectedIds.length} kartu terpilih!`);
+        setSelectedIds([]);
+        fetchData(secret);
+      }
+    } catch (err: any) {
+      alert('Gagal menghapus: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Hapus Semua Kartu Belum Aktif
+  const handleDeleteUnactivated = async () => {
+    const unactivatedCount = cards.filter(c => c.status === 'unactivated').length;
+    if (unactivatedCount === 0) {
+      alert('Tidak ada kartu dengan status Belum Aktif.');
+      return;
+    }
+
+    if (!confirm(`PERINGATAN: Yakin ingin MENGHAPUS SEMUA (${unactivatedCount}) kartu yang BELUM AKTIF? Kartu yang sudah aktif di toko TIDAK akan terhapus.`)) return;
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/cards', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${secret}`
+        },
+        body: JSON.stringify({ action: 'delete_unactivated' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setNotification(`Berhasil menghapus seluruh kartu belum aktif!`);
+        setSelectedIds([]);
+        fetchData(secret);
+      }
+    } catch (err: any) {
+      alert('Gagal: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Hapus Seluruh Database Kartu
+  const handleDeleteAll = async () => {
+    const promptAns = prompt(`PERINGATAN BAHAYA: Ini akan MENGHAPUS SELURUH KARTU (${cards.length} kartu). Ketik kata "HAPUS" untuk konfirmasi:`);
+    if (promptAns !== 'HAPUS') {
+      alert('Penghapusan dibatalkan.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/cards', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${secret}`
+        },
+        body: JSON.stringify({ action: 'delete_all' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setNotification('Seluruh database kartu berhasil dikosongkan!');
+        setSelectedIds([]);
+        fetchData(secret);
+      }
+    } catch (err: any) {
+      alert('Gagal: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Checkbox Selection
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredCards.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredCards.map(c => c.id));
+    }
+  };
+
+  const toggleSelectCard = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
   };
 
   // Filter Cards
@@ -155,7 +271,7 @@ export default function AdminPage() {
           <div>
             <h1 className="text-xl font-bold text-white">Owner Admin Control</h1>
             <p className="text-xs text-slate-400 mt-1">
-              Google Review NFC & QR Platform
+              Google Review NFC &amp; QR Platform
             </p>
           </div>
 
@@ -249,7 +365,7 @@ export default function AdminPage() {
               <Layers className="w-4 h-4 text-blue-600" />
             </div>
             <div className="text-2xl font-bold text-slate-800">{stats.total}</div>
-            <p className="text-[11px] text-slate-400 mt-1">Dicetak di sistem</p>
+            <p className="text-[11px] text-slate-400 mt-1">Dicetak di database</p>
           </div>
 
           <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
@@ -285,11 +401,11 @@ export default function AdminPage() {
           <div className="space-y-1">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/30 text-blue-200">
               <Sparkles className="w-3 h-3" />
-              Produksi Massal Akrilik & Vinyl
+              Produksi Massal Akrilik &amp; Vinyl
             </div>
             <h2 className="text-lg font-bold">Cetak Batch Kartu Baru</h2>
             <p className="text-xs text-blue-200 max-w-xl">
-              Buat puluhan ID kartu sekaligus. Cetak lembar stiker QR Code di vinyl, lalu flash URL ke chip NTAG215 via HP.
+              Buat ID kartu baru. Halaman print stiker vinyl otomatis dibuat dan siap diflash ke NTAG215 via HP.
             </p>
           </div>
 
@@ -325,64 +441,100 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Bot Info Banner */}
-        <div className="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-emerald-900">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center flex-shrink-0">
-              <Bot className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="font-bold">Bot Telegram Pribadi Anda Terhubung!</p>
-              <p className="text-[11px] text-emerald-700">
-                Akses eksklusif: <b>@thisfinoenable</b>. Anda bisa ketik <code>/generate 20</code> atau <code>/stats</code> langsung dari HP di mana saja.
-              </p>
-            </div>
-          </div>
-          <a
-            href="/api/bot/telegram"
-            target="_blank"
-            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[11px] whitespace-nowrap transition"
-          >
-            Cek Status Webhook
-          </a>
-        </div>
-
-        {/* Card List Table */}
+        {/* Card Management Bar with Bulk Actions */}
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
           
-          {/* Filter Bar */}
-          <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="relative w-full sm:w-72">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Cari ID kartu, nama toko, no HP..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
+          {/* Top Filter and Mass Delete Toolbar */}
+          <div className="p-4 border-b border-slate-100 flex flex-col gap-3">
+            
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="relative w-full sm:w-72">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Cari ID kartu, nama toko, no HP..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                <button
+                  onClick={() => setStatusFilter('all')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${statusFilter === 'all' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                >
+                  Semua ({cards.length})
+                </button>
+                <button
+                  onClick={() => setStatusFilter('active')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${statusFilter === 'active' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                >
+                  Aktif ({stats.active})
+                </button>
+                <button
+                  onClick={() => setStatusFilter('unactivated')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${statusFilter === 'unactivated' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                >
+                  Belum Aktif ({stats.unactivated})
+                </button>
+              </div>
             </div>
 
-            <div className="flex items-center gap-1.5 w-full sm:w-auto">
-              <button
-                onClick={() => setStatusFilter('all')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${statusFilter === 'all' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-              >
-                Semua ({cards.length})
-              </button>
-              <button
-                onClick={() => setStatusFilter('active')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${statusFilter === 'active' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-              >
-                Aktif ({stats.active})
-              </button>
-              <button
-                onClick={() => setStatusFilter('unactivated')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${statusFilter === 'unactivated' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-              >
-                Belum Aktif ({stats.unactivated})
-              </button>
+            {/* Mass Delete / Cleanup Actions */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={toggleSelectAll}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 transition"
+                >
+                  {selectedIds.length === filteredCards.length && filteredCards.length > 0 ? (
+                    <>
+                      <CheckSquare className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Batal Pilih Semua</span>
+                    </>
+                  ) : (
+                    <>
+                      <Square className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Pilih Semua ({filteredCards.length})</span>
+                    </>
+                  )}
+                </button>
+
+                {selectedIds.length > 0 && (
+                  <button
+                    onClick={handleDeleteSelected}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition animate-pulse"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Hapus {selectedIds.length} Kartu Terpilih</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Danger Zone: Hapus Stok Belum Aktif & Hapus Semua */}
+              <div className="flex items-center gap-2 ml-auto">
+                <button
+                  onClick={handleDeleteUnactivated}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition"
+                  title="Hapus semua kartu yang belum diaktivasi"
+                >
+                  <Trash2 className="w-3 h-3 text-rose-500" />
+                  <span>Hapus Semua Belum Aktif</span>
+                </button>
+
+                <button
+                  onClick={handleDeleteAll}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] font-semibold text-slate-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition"
+                  title="Kosongkan seluruh database kartu"
+                >
+                  <AlertTriangle className="w-3 h-3 text-amber-500" />
+                  <span>Kosongkan Semua Kartu</span>
+                </button>
+              </div>
+
             </div>
+
           </div>
 
           {/* Table */}
@@ -390,6 +542,14 @@ export default function AdminPage() {
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-100">
                 <tr>
+                  <th className="py-3 px-3 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.length === filteredCards.length && filteredCards.length > 0}
+                      onChange={toggleSelectAll}
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </th>
                   <th className="py-3 px-4">ID Kartu</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4">Nama Toko</th>
@@ -402,15 +562,30 @@ export default function AdminPage() {
               <tbody className="divide-y divide-slate-100 text-slate-700">
                 {filteredCards.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-400">
+                    <td colSpan={8} className="py-8 text-center text-slate-400">
                       Tidak ada kartu yang cocok dengan pencarian.
                     </td>
                   </tr>
                 ) : (
                   filteredCards.map((c) => {
                     const isLocked = c.locked_until && new Date(c.locked_until).getTime() > Date.now();
+                    const isSelected = selectedIds.includes(c.id);
+
                     return (
-                      <tr key={c.id} className="hover:bg-slate-50/70 transition">
+                      <tr 
+                        key={c.id} 
+                        className={`transition ${isSelected ? 'bg-blue-50/60' : 'hover:bg-slate-50/70'}`}
+                      >
+                        {/* Checkbox */}
+                        <td className="py-3 px-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelectCard(c.id)}
+                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                          />
+                        </td>
+
                         {/* ID Kartu */}
                         <td className="py-3 px-4 font-mono font-bold text-slate-900">
                           <Link href={`/r/${c.id}`} target="_blank" className="hover:text-blue-600 inline-flex items-center gap-1">
@@ -489,7 +664,7 @@ export default function AdminPage() {
                           )}
                         </td>
 
-                        {/* Aksi */}
+                        {/* Aksi Kontrol (1 per 1) */}
                         <td className="py-3 px-4 text-right">
                           <div className="inline-flex items-center gap-1">
                             {isLocked && (
@@ -521,10 +696,11 @@ export default function AdminPage() {
                               <ExternalLink className="w-4 h-4" />
                             </Link>
 
+                            {/* Tombol Hapus 1 per 1 */}
                             <button
                               onClick={() => handleAction('delete', c.id)}
-                              title="Hapus Kartu"
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                              title="Hapus Kartu Ini"
+                              className="p-1.5 text-rose-500 hover:text-white hover:bg-rose-600 rounded-lg transition shadow-2xs"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>

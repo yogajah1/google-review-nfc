@@ -452,6 +452,39 @@ export async function deleteCard(id: string): Promise<boolean> {
   return true;
 }
 
+export async function deleteMultipleCards(ids: string[]): Promise<boolean> {
+  if (!ids || ids.length === 0) return true;
+
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase.from('cards').delete().in('id', ids);
+    return !error;
+  }
+
+  const cards = ensureLocalDataFile();
+  const set = new Set(ids);
+  const filtered = cards.filter(c => !set.has(c.id));
+  saveLocalData(filtered);
+  return true;
+}
+
+export async function deleteAllCards(type: 'all' | 'unactivated' = 'all'): Promise<boolean> {
+  if (isSupabaseConfigured && supabase) {
+    let query = supabase.from('cards').delete();
+    if (type === 'unactivated') {
+      query = query.eq('status', 'unactivated');
+    } else {
+      query = query.neq('id', '___NEVER___'); // Delete all rows
+    }
+    const { error } = await query;
+    return !error;
+  }
+
+  const cards = ensureLocalDataFile();
+  const filtered = type === 'unactivated' ? cards.filter(c => c.status !== 'unactivated') : [];
+  saveLocalData(filtered);
+  return true;
+}
+
 export async function getStats(): Promise<{
   total: number;
   active: number;

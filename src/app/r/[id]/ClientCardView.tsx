@@ -301,7 +301,7 @@ export default function ClientCardView({ card, justVerified }: Props) {
           {/* Input 1: Nama Toko */}
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Nama Toko / Bisnis
+              Nama Toko / Bisnis Anda
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -310,7 +310,7 @@ export default function ClientCardView({ card, justVerified }: Props) {
               <input
                 type="text"
                 required
-                placeholder="Contoh: Kopi Kenangan Senopati"
+                placeholder="Contoh: Kopi Kenangan Senopati Jakarta"
                 value={storeName}
                 onChange={(e) => setStoreName(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
@@ -318,11 +318,61 @@ export default function ClientCardView({ card, justVerified }: Props) {
             </div>
           </div>
 
+          {/* FITUR PINTAR: Hubungkan Nama Toko ke Google Maps Otomatis */}
+          <div className="p-3.5 bg-blue-50/80 border border-blue-200/90 rounded-2xl space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
+                <MapPin className="w-4 h-4 text-blue-600" />
+                <span>Pencarian Toko di Google Maps</span>
+              </span>
+              {googleUrl && (
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <Check className="w-3 h-3" />
+                  Terkoneksi ke Maps
+                </span>
+              )}
+            </div>
+            
+            <p className="text-[11px] text-blue-800/80 leading-relaxed">
+              Ketik nama toko di atas, lalu klik tombol di bawah untuk otomatis mengkoneksikan kartu ini ke Google Maps toko Anda:
+            </p>
+
+            <div className="flex items-center gap-2 pt-0.5">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!storeName.trim()) {
+                    alert('Silakan ketik Nama Toko Anda terlebih dahulu!');
+                    return;
+                  }
+                  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(storeName.trim())}`;
+                  setGoogleUrl(mapsUrl);
+                }}
+                className="flex-1 py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5"
+              >
+                <span>🔍 Hubungkan Otomatis ke Maps</span>
+              </button>
+
+              {googleUrl && (
+                <a
+                  href={googleUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="py-2 px-3 bg-white hover:bg-slate-100 text-slate-700 font-semibold text-xs rounded-xl border border-blue-200 transition flex items-center gap-1"
+                  title="Cek lokasi toko di Google Maps"
+                >
+                  <span>Cek Peta</span>
+                  <ExternalLink className="w-3.5 h-3.5 text-blue-600" />
+                </a>
+              )}
+            </div>
+          </div>
+
           {/* Input 2: Link Google Review */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                Link Google Maps Review Bintang 5
+                Link Google Maps Review
               </label>
               <button
                 type="button"
@@ -330,14 +380,14 @@ export default function ClientCardView({ card, justVerified }: Props) {
                 className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
               >
                 <HelpCircle className="w-3.5 h-3.5" />
-                <span>{showGuide ? 'Tutup Panduan' : 'Cara Ambil Link'}</span>
+                <span>{showGuide ? 'Tutup Panduan' : 'Cara Ambil Link Manual'}</span>
               </button>
             </div>
 
             {/* Panduan Cara Mengambil Link */}
             {showGuide && (
               <div className="mb-3 p-3 bg-blue-50/70 border border-blue-200 rounded-xl text-xs text-blue-900 space-y-1.5">
-                <p className="font-bold">📍 Cara Cepat Ambil Link Bintang 5 Google:</p>
+                <p className="font-bold">📍 Cara Manual Ambil Link Bintang 5 Google:</p>
                 <ol className="list-decimal pl-4 space-y-1 text-slate-600">
                   <li>Buka Google Maps di HP / Laptop dan cari nama toko Anda.</li>
                   <li>Klik tombol <b>Bagikan (Share)</b> atau <b>Minta Ulasan</b>.</li>
@@ -354,7 +404,7 @@ export default function ClientCardView({ card, justVerified }: Props) {
               <input
                 type="url"
                 required
-                placeholder="https://g.page/r/.../review atau link maps"
+                placeholder="Otomatis terisi dari pencarian di atas, atau paste link maps"
                 value={googleUrl}
                 onChange={(e) => setGoogleUrl(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
