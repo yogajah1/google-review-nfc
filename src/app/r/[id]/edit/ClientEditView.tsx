@@ -36,6 +36,8 @@ export default function ClientEditView({ card, isInitiallyLocked, initialLockedM
   const [googleUrl, setGoogleUrl] = useState(card.google_review_url || '');
   const [ownerPhone, setOwnerPhone] = useState(card.owner_phone || '');
   const [newPin, setNewPin] = useState('');
+  const [showPlaceFinderModal, setShowPlaceFinderModal] = useState(false);
+  const [modalPlaceIdInput, setModalPlaceIdInput] = useState('');
   
   // Security & Feedback state
   const [isLocked, setIsLocked] = useState(isInitiallyLocked);
@@ -265,16 +267,103 @@ export default function ClientEditView({ card, isInitiallyLocked, initialLockedM
                 <input
                   type="text"
                   required
-                  placeholder="Ketik Nama Toko baru atau tempel link Maps..."
+                  placeholder="Ketik Nama Toko baru, Place ID, atau tempel link Maps..."
                   value={googleUrl}
                   onChange={(e) => setGoogleUrl(e.target.value)}
                   className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              <p className="text-[11px] text-slate-400">
-                Bisa tempel link <code className="bg-slate-100 px-1 py-0.5 rounded text-blue-600">https://g.page/r/...</code> (otomatis diubah ke form penilaian bintang 5 langsung!).
-              </p>
+
+              <div className="flex items-center justify-between pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowPlaceFinderModal(true)}
+                  className="text-[11px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1.5 transition"
+                >
+                  <span>🗺️ Cari Toko di Google Place ID Finder</span>
+                </button>
+                <span className="text-[10px] text-slate-400">
+                  Otomatis popup bintang 5
+                </span>
+              </div>
             </div>
+
+            {/* MODAL POPUP PLACE ID FINDER */}
+            {showPlaceFinderModal && (
+              <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+                <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-scaleUp">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
+                        📍
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-sm text-slate-900">Google Place ID Finder</h3>
+                        <p className="text-[11px] text-slate-400">Cari kode ulasan bintang resmi tokomu</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowPlaceFinderModal(false)}
+                      className="text-slate-400 hover:text-slate-700 text-lg font-bold p-1"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div className="text-xs text-slate-600 space-y-2 leading-relaxed">
+                    <p>
+                      <b>Place ID</b> adalah kode unik toko dari Google Maps (contoh: <code className="bg-slate-100 px-1 py-0.5 rounded text-blue-600 font-bold">ChIJ...</code>) yang berfungsi membuka pop-up bintang 5 langsung di HP pelanggan.
+                    </p>
+                    <p>
+                      Buka tool resmi Google di bawah ini, cari toko barumu, lalu salin Place ID-nya:
+                    </p>
+                  </div>
+
+                  <a
+                    href="https://developers.google.com/maps/documentation/javascript/examples/places-placeid-finder"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-2.5 px-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5"
+                  >
+                    <span>Buka Peta Google Place ID Finder Resmi</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+
+                  {/* Input Paste Place ID Cepat */}
+                  <div className="pt-2 border-t border-slate-100 space-y-2">
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase">
+                      Tempel Place ID Baru di Sini:
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="Contoh: ChIJN1t_tDeuEmsRUsoyG83frY4"
+                        value={modalPlaceIdInput}
+                        onChange={(e) => setModalPlaceIdInput(e.target.value)}
+                        className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!modalPlaceIdInput.trim()) {
+                            alert('Masukkan Place ID terlebih dahulu!');
+                            return;
+                          }
+                          const cleanPid = modalPlaceIdInput.trim();
+                          setGoogleUrl(`https://search.google.com/local/writereview?placeid=${cleanPid}`);
+                          setShowPlaceFinderModal(false);
+                        }}
+                        className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition whitespace-nowrap"
+                      >
+                        Terapkan
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            )}
 
             {/* Nomor Telepon */}
             <div>
