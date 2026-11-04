@@ -38,6 +38,62 @@ export default function ClientEditView({ card, isInitiallyLocked, initialLockedM
   const [newPin, setNewPin] = useState('');
   const [showPlaceFinderModal, setShowPlaceFinderModal] = useState(false);
   const [modalPlaceIdInput, setModalPlaceIdInput] = useState('');
+
+  // Autocomplete Sugesti
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
+
+  const handleInputChange = (val: string) => {
+    setGoogleUrl(val);
+    if (debounceTimer) clearTimeout(debounceTimer);
+
+    const clean = val.trim();
+    if (clean.length >= 2 && !clean.startsWith('http')) {
+      const timer = setTimeout(async () => {
+        try {
+          const res = await fetch(`/api/places/suggest?q=${encodeURIComponent(clean)}`);
+          const data = await res.json();
+          if (data.suggestions && data.suggestions.length > 0) {
+            setSuggestions(data.suggestions);
+            setShowSuggestions(true);
+          } else {
+            setSuggestions([]);
+            setShowSuggestions(false);
+          }
+        } catch {
+          setSuggestions([]);
+          setShowSuggestions(false);
+        }
+      }, 250);
+      setDebounceTimer(timer);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleSelectSuggestion = async (chosenName: string) => {
+    setGoogleUrl(chosenName);
+    setStoreName(chosenName);
+    setShowSuggestions(false);
+    setSuggestions([]);
+
+    try {
+      const res = await fetch('/api/places/convert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input: chosenName }),
+      });
+      const data = await res.json();
+      if (data.directReviewUrl) {
+        setGoogleUrl(data.directReviewUrl);
+        if (data.storeName) setStoreName(data.storeName);
+      }
+    } catch {
+      // ignore
+    }
+  };
   
   // Security & Feedback state
   const [isLocked, setIsLocked] = useState(isInitiallyLocked);
@@ -261,17 +317,45 @@ export default function ClientEditView({ card, isInitiallyLocked, initialLockedM
                 Nama Toko Baru atau Link Google Maps Baru
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                  <Store className="w-4 h-4" />
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                    <Store className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ketik Nama Toko baru atau tempel link Maps..."
+                    value={googleUrl}
+                    onChange={(e) => handleInputChange(e.target.value)}
+                    onFocus={() => {
+                      if (suggestions.length > 0) setShowSuggestions(true);
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => setShowSuggestions(false), 200);
+                    }}
+                    className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ketik Nama Toko baru, Place ID, atau tempel link Maps..."
-                  value={googleUrl}
-                  onChange={(e) => setGoogleUrl(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+
+                {/* Floating Suggestions */}
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-40 max-h-56 overflow-y-auto divide-y divide-slate-100 animate-fadeIn">
+                    <div className="px-3 py-1 bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      Saran Toko Google Maps:
+                    </div>
+                    {suggestions.map((item, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onMouseDown={() => handleSelectSuggestion(item)}
+                        className="w-full text-left px-3.5 py-2 hover:bg-blue-50 text-xs text-slate-800 flex items-center gap-2 transition"
+                      >
+                        <MapPin className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                        <span className="font-semibold truncate">{item}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-between pt-1">

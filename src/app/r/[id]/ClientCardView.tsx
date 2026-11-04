@@ -37,6 +37,11 @@ export default function ClientCardView({ card, justVerified }: Props) {
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   
+  // State Autocomplete Saran Toko Langsung
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
+
   const [isConverting, setIsConverting] = useState(false);
   const [convertedSuccess, setConvertedSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -46,10 +51,14 @@ export default function ClientCardView({ card, justVerified }: Props) {
   const [showPlaceFinderModal, setShowPlaceFinderModal] = useState(false);
   const [modalPlaceIdInput, setModalPlaceIdInput] = useState('');
 
-  // Current domain URL
-  const [origin, setOrigin] = useState('');
+  // Current domain URL: Selalu kunci ke domain produksi publik utama agar tidak kena login Vercel SSO!
+  const [origin, setOrigin] = useState('https://google-review-nfc-neon.vercel.app');
   React.useEffect(() => {
-    setOrigin(window.location.origin);
+    if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+      setOrigin(window.location.origin);
+    } else {
+      setOrigin('https://google-review-nfc-neon.vercel.app');
+    }
   }, []);
 
   const editUrl = `${origin}/r/${card.id}/edit`;
@@ -68,6 +77,47 @@ export default function ClientCardView({ card, justVerified }: Props) {
     navigator.clipboard.writeText(editUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
+  };
+
+  // Autocomplete live suggestion handler saat user mengetik
+  const handleInputChange = (val: string) => {
+    setSmartInput(val);
+    setConvertedSuccess(false);
+
+    if (debounceTimer) clearTimeout(debounceTimer);
+
+    const clean = val.trim();
+    if (clean.length >= 2 && !clean.startsWith('http')) {
+      const timer = setTimeout(async () => {
+        try {
+          const res = await fetch(`/api/places/suggest?q=${encodeURIComponent(clean)}`);
+          const data = await res.json();
+          if (data.suggestions && data.suggestions.length > 0) {
+            setSuggestions(data.suggestions);
+            setShowSuggestions(true);
+          } else {
+            setSuggestions([]);
+            setShowSuggestions(false);
+          }
+        } catch {
+          setSuggestions([]);
+          setShowSuggestions(false);
+        }
+      }, 250);
+      setDebounceTimer(timer);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  // Pilih Toko dari daftar saran autocomplete
+  const handleSelectSuggestion = (chosenName: string) => {
+    setSmartInput(chosenName);
+    setStoreName(chosenName);
+    setShowSuggestions(false);
+    setSuggestions([]);
+    handleSmartConvert(chosenName);
   };
 
   // FUNGSI KONVERSI OTOMATIS: Mengubah nama toko / link biasa menjadi link review bintang 5 langsung
@@ -388,72 +438,86 @@ export default function ClientCardView({ card, justVerified }: Props) {
               </div>
             )}
 
-            {/* Input Satu Kolom */}
+            {/* Input Satu Kolom Tanpa Tombol di Sampingnya (Dengan Live Autocomplete Sugesti) */}
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                <Store className="w-4 h-4" />
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <Store className="w-4 h-4" />
+                </div>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ketik Nama Toko Anda di Google Maps..."
+                  value={smartInput}
+                  onChange={(e) => handleInputChange(e.target.value)}
+                  onFocus={() => {
+                    if (suggestions.length > 0) setShowSuggestions(true);
+                  }}
+                  onBlur={() => {
+                    // Beri jeda agar klik pada dropdown sempat tereksekusi
+                    setTimeout(() => {
+                      setShowSuggestions(false);
+                      if (smartInput.trim() && !directReviewUrl) {
+                        handleSmartConvert(smartInput);
+                      }
+                    }, 200);
+                  }}
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition shadow-xs"
+                />
               </div>
-              <input
-                type="text"
-                required
-                placeholder="Ketik Nama Toko atau tempel link Maps..."
-                value={smartInput}
-                onChange={(e) => {
-                  setSmartInput(e.target.value);
-                  setConvertedSuccess(false);
-                }}
-                onBlur={() => {
-                  if (smartInput.trim()) {
-                    handleSmartConvert(smartInput);
-                  }
-                }}
-                className="w-full pl-10 pr-24 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-              />
-              <button
-                type="button"
-                onClick={() => handleSmartConvert(smartInput)}
-                disabled={isConverting || !smartInput.trim()}
-                className="absolute right-2 top-1/2 -translate-y-1/2 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold text-xs rounded-lg transition flex items-center gap-1"
-              >
-                {isConverting ? (
-                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                  <>
-                    <Search className="w-3 h-3" />
-                    <span>Proses</span>
-                  </>
-                )}
-              </button>
+
+              {/* Floating Dropdown Autocomplete Saran Toko dari Place ID Finder */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-40 max-h-60 overflow-y-auto divide-y divide-slate-100 animate-fadeIn">
+                  <div className="px-3.5 py-1.5 bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Saran Toko Google Maps:
+                  </div>
+                  {suggestions.map((item, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onMouseDown={() => handleSelectSuggestion(item)}
+                      className="w-full text-left px-3.5 py-2.5 hover:bg-blue-50/80 text-xs text-slate-800 flex items-center gap-2.5 transition group"
+                    >
+                      <MapPin className="w-4 h-4 text-blue-500 group-hover:scale-110 transition flex-shrink-0" />
+                      <div className="truncate">
+                        <span className="font-semibold text-slate-900 block truncate">{item}</span>
+                        <span className="text-[10px] text-slate-400">Klik untuk hubungkan ulasan bintang 5</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Tombol Pembantu: Buka Google Place ID Finder */}
-            <div className="flex items-center justify-between pt-1">
-              <button
-                type="button"
-                onClick={() => setShowPlaceFinderModal(true)}
-                className="text-[11px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1.5 transition"
-              >
-                <span>🗺️ Cari Toko di Google Place ID Finder</span>
-              </button>
-
-              <span className="text-[10px] text-slate-400">
-                Otomatis popup bintang 5
-              </span>
-            </div>
+            {/* Status Loading Konversi Otomatis */}
+            {isConverting && (
+              <div className="flex items-center gap-2 text-xs text-blue-600 px-1 py-0.5">
+                <div className="w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                <span className="font-medium">Mencari Place ID &amp; menghubungkan ulasan bintang 5 Google...</span>
+              </div>
+            )}
 
             {/* Notifikasi Status Link Penilaian Bintang 5 */}
             {convertedSuccess && (
               <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-900 animate-fadeIn">
                 <div className="flex items-center gap-2 truncate mr-2">
                   <CheckCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                  <span className="font-semibold">Siap masuk langsung ke penilaian bintang 5!</span>
+                  <div className="truncate">
+                    <span className="font-bold text-emerald-900 block truncate">
+                      {storeName || smartInput}
+                    </span>
+                    <span className="text-[11px] text-emerald-700">
+                      Terhubung ke Google Maps! Siap menerima bintang 5 ⭐
+                    </span>
+                  </div>
                 </div>
                 {directReviewUrl && (
                   <a
                     href={directReviewUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-lg transition whitespace-nowrap flex items-center gap-1"
+                    className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-lg transition whitespace-nowrap flex items-center gap-1 shadow-xs"
                   >
                     <span>⭐ Tes Bintang</span>
                     <ExternalLink className="w-3 h-3" />
@@ -461,6 +525,18 @@ export default function ClientCardView({ card, justVerified }: Props) {
                 )}
               </div>
             )}
+
+            {/* Alternatif: Tombol Peta Interaktif (Jika ingin cari via peta) */}
+            <div className="flex items-center justify-between pt-1">
+              <button
+                type="button"
+                onClick={() => setShowPlaceFinderModal(true)}
+                className="text-[11px] text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 transition"
+              >
+                <span>🗺️ Mau cari toko lewat peta interaktif? Klik di sini</span>
+              </button>
+              <span className="text-[10px] text-slate-400">Otomatis popup bintang 5</span>
+            </div>
           </div>
 
           {/* MODAL POPUP: GOOGLE PLACE ID FINDER INTERAKTIF DI DALAM WEB KITA */}

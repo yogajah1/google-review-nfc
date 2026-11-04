@@ -51,10 +51,10 @@ export default function AdminPage() {
   // Check saved secret in localStorage
   useEffect(() => {
     const getTargetBase = () => {
-      if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
-        return 'https://google-review-nfc-neon.vercel.app';
+      if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+        return window.location.origin;
       }
-      return process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://google-review-nfc-neon.vercel.app');
+      return 'https://google-review-nfc-neon.vercel.app';
     };
     setOrigin(getTargetBase());
     const saved = localStorage.getItem('admin_secret');

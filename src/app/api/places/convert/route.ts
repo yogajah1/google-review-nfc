@@ -1,5 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Helper pencari Place ID resmi Google Maps berdasarkan nama toko
+async function findGooglePlaceId(query: string): Promise<string | null> {
+  try {
+    const url = `https://www.google.com/maps/search/${encodeURIComponent(query)}`;
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    });
+    const text = await res.text();
+    const preloadMatch = text.match(/href="(\/search\?tbm=map[^"]+)"/);
+    if (!preloadMatch) return null;
+    
+    const fetchUrl = 'https://www.google.com' + preloadMatch[1].replace(/&amp;/g, '&');
+    const res2 = await fetch(fetchUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    });
+    const text2 = await res2.text();
+    const pidMatch = text2.match(/placeid(?:\\u003d|=)(ChIJ[A-Za-z0-9_-]{20,})/);
+    if (pidMatch && pidMatch[1]) {
+      return pidMatch[1];
+    }
+  } catch (err) {
+    console.warn('findGooglePlaceId failed:', err);
+  }
+  return null;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { input } = await req.json();
@@ -14,10 +44,23 @@ export async function POST(req: NextRequest) {
       if (trimmed.startsWith('ChIJ')) {
         return NextResponse.json({
           directReviewUrl: `https://search.google.com/local/writereview?placeid=${trimmed}`,
+          placeId: trimmed,
           storeName: null,
           method: 'place_id'
         });
       }
+
+      // Otomatis cari Place ID resmi Google dari nama toko!
+      const resolvedPid = await findGooglePlaceId(trimmed);
+      if (resolvedPid) {
+        return NextResponse.json({
+          directReviewUrl: `https://search.google.com/local/writereview?placeid=${resolvedPid}`,
+          placeId: resolvedPid,
+          storeName: trimmed,
+          method: 'resolved_place_id_from_name'
+        });
+      }
+
       return NextResponse.json({
         directReviewUrl: `https://search.google.com/local/writereview?query=${encodeURIComponent(trimmed)}`,
         storeName: trimmed,

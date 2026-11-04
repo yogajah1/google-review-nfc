@@ -38,10 +38,10 @@ export default function BatchPrintPage() {
 
   // Helper resolver domain: Selalu gunakan domain produksi utama agar scan di HP TIDAK kena proteksi SSO Vercel preview!
   const getTargetBase = () => {
-    if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
-      return 'https://google-review-nfc-neon.vercel.app';
+    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+      return window.location.origin;
     }
-    return process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://google-review-nfc-neon.vercel.app');
+    return 'https://google-review-nfc-neon.vercel.app';
   };
 
   useEffect(() => {
@@ -397,7 +397,7 @@ export default function BatchPrintPage() {
                     PERSIS FOTO CONTOH (TANPA ID / TEKS TAMBAHAN)
                     ======================================================== */}
                 <div 
-                  className="relative w-[330px] h-[330px] rounded-[32px] p-4 shadow-xl print:shadow-none overflow-hidden flex flex-col justify-end border border-slate-200/50 print:border-none"
+                  className="relative w-[330px] h-[330px] rounded-[32px] pt-7 pb-4 px-4 shadow-xl print:shadow-none overflow-hidden flex flex-col items-center justify-center border border-slate-200/50 print:border-none"
                   style={{
                     boxSizing: 'border-box',
                     backgroundColor: '#ffffff'
@@ -413,13 +413,13 @@ export default function BatchPrintPage() {
 
                   {/* Kotak Putih Utama di Tengah */}
                   <div 
-                    className="relative w-full h-[84%] bg-white rounded-[24px] pt-11 pb-3.5 px-3.5 flex flex-col items-center justify-between"
+                    className="relative w-full h-full bg-white rounded-[24px] pt-10 pb-3.5 px-3.5 flex flex-col items-center justify-between"
                     style={{
                       boxShadow: '0 2px 10px rgba(0,0,0,0.08)'
                     }}
                   >
                     
-                    {/* Kubah Setengah Lingkaran Tempat Duduk Logo Google G (Disesuaikan agar tidak menutupi tulisan) */}
+                    {/* Kubah Setengah Lingkaran Tempat Duduk Logo Google G (Proporsional & Sempurna) */}
                     <div 
                       className="absolute -top-7 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full bg-white flex items-center justify-center"
                       style={{
