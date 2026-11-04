@@ -95,9 +95,12 @@ export default function ClientEditView({ card, isInitiallyLocked, initialLockedM
     e.preventDefault();
     setErrorMessage('');
 
-    if (!googleUrl.trim() || !googleUrl.startsWith('http')) {
-      setErrorMessage('Link Google Review baru harus diawali dengan http:// atau https://');
-      return;
+    let finalUrl = googleUrl.trim();
+    if (finalUrl.includes('g.page/r/')) {
+      const clean = finalUrl.replace(/\/+$/, '');
+      finalUrl = clean.endsWith('/review') ? clean : `${clean}/review`;
+    } else if (!finalUrl.startsWith('http')) {
+      finalUrl = `https://search.google.com/local/writereview?query=${encodeURIComponent(finalUrl)}`;
     }
 
     if (newPin && !/^\d{4}$/.test(newPin)) {
@@ -113,7 +116,7 @@ export default function ClientEditView({ card, isInitiallyLocked, initialLockedM
         body: JSON.stringify({
           pin, // PIN yang sudah terverifikasi sebelumnya
           store_name: storeName,
-          google_review_url: googleUrl,
+          google_review_url: finalUrl,
           owner_phone: ownerPhone,
           new_pin: newPin || undefined,
         }),
@@ -250,10 +253,10 @@ export default function ClientEditView({ card, isInitiallyLocked, initialLockedM
               </div>
             )}
 
-            {/* Nama Toko */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Nama Toko / Bisnis
+            {/* SATU KOLOM PINTAR EDIT: Nama Toko atau Link Google Maps Baru */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Nama Toko Baru atau Link Google Maps Baru
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
@@ -262,71 +265,14 @@ export default function ClientEditView({ card, isInitiallyLocked, initialLockedM
                 <input
                   type="text"
                   required
-                  value={storeName}
-                  onChange={(e) => setStoreName(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            {/* Fitur Pintar: Cari Toko di Google Maps */}
-            <div className="p-3 bg-blue-50/80 border border-blue-200/90 rounded-xl space-y-1.5">
-              <span className="text-[11px] font-bold text-blue-900 flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-blue-600" />
-                <span>Pencarian Toko di Google Maps</span>
-              </span>
-              <p className="text-[10px] text-blue-800/80">
-                Ketik nama cabang/alamat baru di atas, lalu klik tombol di bawah untuk langsung menyambungkan ke Google Maps:
-              </p>
-              <div className="flex items-center gap-2 pt-0.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!storeName.trim()) {
-                      alert('Silakan isi Nama Toko baru terlebih dahulu!');
-                      return;
-                    }
-                    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(storeName.trim())}`;
-                    setGoogleUrl(mapsUrl);
-                  }}
-                  className="flex-1 py-1.5 px-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] rounded-lg shadow-xs transition"
-                >
-                  🔍 Hubungkan Otomatis ke Maps Baru
-                </button>
-                {googleUrl && (
-                  <a
-                    href={googleUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="py-1.5 px-2 bg-white hover:bg-slate-100 text-slate-700 font-semibold text-[11px] rounded-lg border border-blue-200 flex items-center gap-1 transition"
-                  >
-                    <span>Cek</span>
-                    <ExternalLink className="w-3 h-3 text-blue-600" />
-                  </a>
-                )}
-              </div>
-            </div>
-
-            {/* Link Google Review Baru */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Link Google Maps Review Baru (Alamat Baru)
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                  <MapPin className="w-4 h-4" />
-                </div>
-                <input
-                  type="url"
-                  required
-                  placeholder="https://g.page/r/.../review atau otomatis dari tombol di atas"
+                  placeholder="Ketik Nama Toko baru atau tempel link Maps..."
                   value={googleUrl}
                   onChange={(e) => setGoogleUrl(e.target.value)}
                   className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              <p className="text-[11px] text-slate-400 mt-1">
-                Masukkan link Google Review cabang/alamat toko baru Anda.
+              <p className="text-[11px] text-slate-400">
+                Bisa tempel link <code className="bg-slate-100 px-1 py-0.5 rounded text-blue-600">https://g.page/r/...</code> (otomatis diubah ke form penilaian bintang 5 langsung!).
               </p>
             </div>
 
